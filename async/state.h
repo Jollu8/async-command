@@ -22,7 +22,7 @@ namespace bulk {
         virtual void CmdOther(const bulk::Cmd &cmd) = 0;
 
     protected:
-        Handler **m_handler_;
+        Handler *m_handler_;
 
     };
 
