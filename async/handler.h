@@ -43,7 +43,7 @@ namespace bulk {
     private: // Fields
         std::size_t m_bulkSize_;
         std::string m_buffer_;
-        std::stack<Bracket >m_bracketSize_;
+        std::stack<Bracket >m_brackets_;
         std::queue<bulk::Cmd> m_cmds_;
         std::list<logger::LogPtr> m_loggers_;
         StateBasePtr m_state_;

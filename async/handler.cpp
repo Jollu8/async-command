@@ -2,69 +2,107 @@
 
 #include <sstream>
 
-bulk::Handler::Handler(const std::size_t &bulkSize)
-        : m_bulkSize_(bulkSize),
-          m_state_(StateBasePtr{new StateEmpty(this)}) {}
+using namespace bulk;
 
-void bulk::Handler::Receive(const char *data, std::size_t size) {
-    for (auto i = 0u; i < size; ++i) {
+Handler::Handler(const size_t &bulkSize)
+        : m_bulkSize_(bulkSize)
+        , m_state_(StateBasePtr{new StateEmpty(this)})
+{
+}
+
+void Handler::Receive(const char *data, size_t size)
+{
+    for (auto i = 0u; i < size; i++) {
         if (data[i] == '\n') {
-            Handler::ReceiveCmd(m_buffer_);
+            ReceiveCmd(m_buffer_);
             m_buffer_.clear();
-        } else m_buffer_.append({data[i]});
-
+        } else {
+            m_buffer_.append({data[i]});
+        }
     }
-
 }
 
-void bulk::Handler::ReceiveCmd(const bulk::Cmd &cmd) {
-    if (IsOpenedBracket(cmd))m_state_->CmdOpenedBracket();
-    else if (IsClosedBracket(cmd)) m_state_->CmdOpenedBracket();
-    else m_state_->CmdOther(cmd);
+void Handler::ReceiveCmd(const Cmd &cmd)
+{
+    if (IsOpenedBracket(cmd)) {
+        m_state_->CmdOpenedBracket();
+    } else if (IsClosedBracket(cmd)) {
+        m_state_->CmdClosedBracket();
+    } else {
+        m_state_->CmdOther(cmd);
+    }
 }
 
-void bulk::Handler::ReceiveEof() {
+void Handler::ReceiveEof()
+{
     m_state_->CmdEof();
 }
 
-void bulk::Handler::RegisterLogger(logger::LogPtr logger) {
+void Handler::RegisterLogger(logger::LogPtr logger)
+{
     m_loggers_.emplace_back(std::move(logger));
 }
 
-void bulk::Handler::SetState(bulk::StateBasePtr state) {
+void Handler::SetState(StateBasePtr state)
+{
     m_state_ = std::move(state);
 }
 
-std::size_t bulk::Handler::BulkSize() const { return m_bulkSize_; }
-
-std::size_t bulk::Handler::CmdsSize() const { return m_cmds_.size(); }
-
-std::size_t bulk::Handler::BracketSize() const { return m_bracketSize_.size(); }
-
-void bulk::Handler::PushOpenBracket() {
-    m_bracketSize_.push('{');
+size_t Handler::BulkSize() const
+{
+    return m_bulkSize_;
 }
 
-void bulk::Handler::PopOpenBracket() { m_bracketSize_.pop(); }
+size_t Handler::CmdsSize() const
+{
+    return m_cmds_.size();
+}
 
-void bulk::Handler::PushCmd(const bulk::Cmd &cmd) { m_cmds_.push(cmd); }
+size_t Handler::BracketSize() const
+{
+    return m_brackets_.size();
+}
 
-void bulk::Handler::ProcessBulk() {
-    std::for_each(m_loggers_.cbegin(), m_loggers_.cend(), [&](auto &logger) {
+void Handler::PushOpenBracket()
+{
+    m_brackets_.push('{');
+}
+
+void Handler::PopOpenBracket()
+{
+    m_brackets_.pop();
+}
+
+void Handler::PushCmd(const Cmd &cmd)
+{
+    m_cmds_.push(cmd);
+}
+
+void Handler::ProcessBulk()
+{
+    for (const auto &logger : m_loggers_) {
         logger->Process(m_cmds_);
-    });
-    while(!m_cmds_.empty()) m_cmds_.pop();
+    }
+    while (!m_cmds_.empty()) {
+        m_cmds_.pop();
+    }
 }
 
-bool bulk::Handler::IsOpenedBracket(const bulk::Cmd &cmd) {
+bool Handler::IsOpenedBracket(const Cmd &cmd)
+{
     return IsAnyBracket(cmd, '{');
-
 }
 
-bool bulk::Handler::IsClosedBracket(const bulk::Cmd &cmd) {return IsAnyBracket(cmd, '}');}
-
-bool bulk::Handler::IsAnyBracket(const bulk::Cmd&cmd, bulk::Bracket anyBracket) {
-    return (cmd.size() == 1) && (cmd.at(0) == anyBracket);
+bool Handler::IsClosedBracket(const Cmd &cmd)
+{
+    return IsAnyBracket(cmd, '}');
 }
 
-
+bool Handler::IsAnyBracket(const Cmd &cmd, Bracket anyBracket)
+{
+    if (cmd.size() == 1) {
+        return cmd.at(0) == anyBracket;
+    } else {
+        return false;
+    }
+}
