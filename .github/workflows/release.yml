@@ -1,5 +1,8 @@
 name: 'C++ CI'
 
+permissions: write-all
+
+
 on:
   push:
     branches:
